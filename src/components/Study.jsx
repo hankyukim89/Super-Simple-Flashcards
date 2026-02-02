@@ -14,6 +14,7 @@ const Study = ({ cards, images, languages }) => {
     useEffect(() => {
         // Only map if not already set or restarting
         if (cards.length > 0) {
+            // eslint-disable-next-line
             setStudyCards(prev => {
                 if (prev.length === 0) return cards.map(c => c.id || c.index);
                 return prev;

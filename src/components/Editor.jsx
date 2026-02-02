@@ -1,5 +1,4 @@
-import React, { useRef, useEffect } from 'react';
-import { useFlashcards } from '../hooks/useFlashcards';
+import React, { useRef } from 'react';
 import CardPreview from './CardPreview';
 
 const Editor = ({
@@ -25,9 +24,7 @@ const Editor = ({
         setLanguages(prev => ({ ...prev, [type]: value }));
     };
 
-    const lineCount = inputText.split('\n').length;
-    // Ensure enough lines fill the height
-    const lineNumbers = Array.from({ length: Math.max(lineCount, 20) }, (_, i) => i + 1);
+
 
     return (
         <div className="editor-layout">

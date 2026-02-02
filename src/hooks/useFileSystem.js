@@ -1,11 +1,41 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-export const useFileSystem = () => {
-    const [items, setItems] = useState({
-        'root': { id: 'root', type: 'folder', name: 'Main', parentId: null, permissions: 'private' }
-    }); // Flat map for easier access by ID
-    const [clipboard, setClipboard] = useState(null); // { action: 'copy' | 'cut', itemIds: [] }
+const DEFAULT_ITEMS = {
+    'root': { id: 'root', type: 'folder', name: 'Main', parentId: null, permissions: 'private' }
+};
+
+export const useFileSystem = (userId) => {
+    const [items, setItems] = useState(DEFAULT_ITEMS);
+    const [clipboard, setClipboard] = useState(null);
+
+    // Load from localStorage when userId changes
+    useEffect(() => {
+        if (!userId) {
+            // eslint-disable-next-line
+            setItems(DEFAULT_ITEMS);
+            return;
+        }
+
+        const stored = localStorage.getItem(`flashcards_data_${userId}`);
+        if (stored) {
+            try {
+                setItems(JSON.parse(stored));
+            } catch (e) {
+                console.error("Failed to parse stored items", e);
+                setItems(DEFAULT_ITEMS);
+            }
+        } else {
+            setItems(DEFAULT_ITEMS);
+        }
+    }, [userId]);
+
+    // Save to localStorage whenever items change
+    useEffect(() => {
+        if (userId && items !== DEFAULT_ITEMS) {
+            localStorage.setItem(`flashcards_data_${userId}`, JSON.stringify(items));
+        }
+    }, [items, userId]);
 
     // Helper to get children of a folder
     const getChildren = useCallback((folderId) => {

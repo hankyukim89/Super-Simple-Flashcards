@@ -26,7 +26,6 @@ const Dashboard = ({
     const [selectionBox, setSelectionBox] = useState(null); // { startX, startY, currentX, currentY }
     const containerRef = useRef(null);
 
-    const currentFolder = items[currentFolderId];
     const children = getChildren(currentFolderId);
 
     // Breadcrumb path construction
@@ -215,7 +214,7 @@ const Dashboard = ({
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            onClick={(e) => {
+            onClick={() => {
                 // Clear selection handled in MouseDown if hitting background
             }}
             style={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative', userSelect: 'none' }}

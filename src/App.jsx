@@ -1,19 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useFileSystem } from './hooks/useFileSystem'
 import { useFlashcards } from './hooks/useFlashcards'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Editor from './components/Editor'
 import Study from './components/Study'
 import Dashboard from './components/Dashboard'
+import LandingPage from './components/LandingPage'
 import './App.css'
 
-function App() {
+function AuthenticatedApp() {
+  const { user, logout } = useAuth();
+
   // Routing State
   const [view, setView] = useState('dashboard'); // 'dashboard', 'editor', 'study'
   const [activeSetId, setActiveSetId] = useState(null);
   const [history, setHistory] = useState([]); // Stack of { view, activeSetId }
 
-  // File System
-  const fs = useFileSystem();
+  // File System - Pass user ID for isolation
+  const fs = useFileSystem(user?.id);
 
   // Flashcard Logic
   const flashcardState = useFlashcards();
@@ -21,21 +25,15 @@ function App() {
   const handleNavigateFile = (item) => {
     if (item.type === 'set') {
       setActiveSetId(item.id);
-      // Load content into editor/study
-      // If fresh set, content is null.
       if (item.content) {
         flashcardState.setInputText(item.content.text || '');
         if (item.content.languages) {
           flashcardState.setLanguages(item.content.languages);
         }
-        // We rely on parse logic in useFlashcards to generate cards from text
-        // If we saved other metadata (separators), load them too
       } else {
         flashcardState.setInputText('');
         flashcardState.setLanguages({ term: 'en-US', definition: 'en-US' });
       }
-
-      // Add to history before navigating
       setHistory(prev => [...prev, { view, activeSetId }]);
       setView('editor');
     }
@@ -54,7 +52,6 @@ function App() {
       fs.updateSetContent(activeSetId, {
         text: flashcardState.inputText,
         languages: flashcardState.languages,
-        // we could save parsed cards too to avoid reparsing, but text is source of truth
       });
     }
   };
@@ -74,7 +71,6 @@ function App() {
 
   const handleCreateAndExit = () => {
     handleSaveSet();
-    // Go back to pre-editor state (usually dashboard or folder w/ history)
     goBack();
   };
 
@@ -82,6 +78,11 @@ function App() {
     handleSaveSet();
     setView('study');
   };
+
+  // If we are not logged in, show Landing Page
+  if (!user) {
+    return <LandingPage />;
+  }
 
   return (
     <div className="app-container">
@@ -106,7 +107,7 @@ function App() {
           </h1>
         </div>
 
-        <div style={{ gap: '1rem', display: 'flex' }}>
+        <div style={{ gap: '1rem', display: 'flex', alignItems: 'center' }}>
           {view === 'editor' && (
             <>
               <button
@@ -125,6 +126,32 @@ function App() {
               </button>
             </>
           )}
+
+          <div style={{
+            marginLeft: '1rem',
+            paddingLeft: '1rem',
+            borderLeft: '1px solid #eee',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#666' }}>
+              {user.username}
+            </span>
+            <button
+              onClick={logout}
+              style={{
+                fontSize: '0.8rem',
+                color: '#999',
+                cursor: 'pointer',
+                padding: '0.2rem 0.5rem',
+                background: '#f5f5f7',
+                borderRadius: '4px'
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
       <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', height: 'calc(100vh - 80px)' }}>
@@ -146,6 +173,14 @@ function App() {
       </main>
     </div>
   )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AuthenticatedApp />
+    </AuthProvider>
+  );
 }
 
 export default App
