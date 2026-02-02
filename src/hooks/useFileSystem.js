@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { db } from '../firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 const DEFAULT_ITEMS = {
     'root': { id: 'root', type: 'folder', name: 'Main', parentId: null, permissions: 'private' }
@@ -9,7 +11,7 @@ export const useFileSystem = (userId) => {
     const [items, setItems] = useState(DEFAULT_ITEMS);
     const [clipboard, setClipboard] = useState(null);
 
-    // Load from localStorage when userId changes
+    // Load from Firestore
     useEffect(() => {
         if (!userId) {
             // eslint-disable-next-line
@@ -17,23 +19,35 @@ export const useFileSystem = (userId) => {
             return;
         }
 
-        const stored = localStorage.getItem(`flashcards_data_${userId}`);
-        if (stored) {
-            try {
-                setItems(JSON.parse(stored));
-            } catch (e) {
-                console.error("Failed to parse stored items", e);
+        const unsub = onSnapshot(doc(db, "users", userId), (docSnap) => {
+            if (docSnap.exists()) {
+                setItems(docSnap.data().fileSystem || DEFAULT_ITEMS);
+            } else {
+                // Initialize if new user
+                setDoc(doc(db, "users", userId), { fileSystem: DEFAULT_ITEMS }, { merge: true });
                 setItems(DEFAULT_ITEMS);
             }
-        } else {
-            setItems(DEFAULT_ITEMS);
-        }
+        });
+
+        return () => unsub();
     }, [userId]);
 
-    // Save to localStorage whenever items change
+    // Save to Firestore
     useEffect(() => {
-        if (userId && items !== DEFAULT_ITEMS) {
-            localStorage.setItem(`flashcards_data_${userId}`, JSON.stringify(items));
+        if (!userId) return;
+
+        // Debounce or save on change. For now, direct save is fine for small data, 
+        // but in prod we'd want to be careful.
+        // We will just save when items change. 
+        if (items !== DEFAULT_ITEMS) {
+            const save = async () => {
+                try {
+                    await setDoc(doc(db, "users", userId), { fileSystem: items }, { merge: true });
+                } catch (e) {
+                    console.error("Error saving filesystem: ", e);
+                }
+            };
+            save();
         }
     }, [items, userId]);
 

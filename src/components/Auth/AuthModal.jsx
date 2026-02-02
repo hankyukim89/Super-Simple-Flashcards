@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     const [mode, setMode] = useState(initialMode); // 'login' or 'signup'
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -19,9 +19,9 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
 
         try {
             if (mode === 'login') {
-                await login(username, password);
+                await login(email, password);
             } else {
-                await signup(username, password);
+                await signup(email, password);
             }
             onClose(); // Close modal on success (App will redirect)
         } catch (err) {
@@ -79,12 +79,13 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>Username</label>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', fontSize: '0.9rem' }}>Email</label>
                         <input
-                            type="text"
-                            value={username}
-                            onChange={e => setUsername(e.target.value)}
+                            type="email"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
                             required
+                            placeholder="name@example.com"
                             style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #ddd' }}
                         />
                     </div>

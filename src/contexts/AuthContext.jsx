@@ -1,4 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    signInWithPopup
+} from 'firebase/auth';
+import { auth, googleProvider } from '../firebase';
 
 const AuthContext = createContext(null);
 
@@ -10,79 +18,32 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Load session from localStorage on mount
-        const storedUser = localStorage.getItem('flashcards_session');
-        if (storedUser) {
-            // eslint-disable-next-line
-            setUser(JSON.parse(storedUser));
-        }
-        setLoading(false);
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser ? {
+                id: currentUser.uid,
+                email: currentUser.email,
+                username: currentUser.email?.split('@')[0] || 'User'
+            } : null);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
     }, []);
 
-    const login = (username, password) => {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                if (username === 'admin' && password === 'admin123') {
-                    const adminUser = { id: 'admin', username: 'Admin', isAdmin: true };
-                    setUser(adminUser);
-                    localStorage.setItem('flashcards_session', JSON.stringify(adminUser));
-                    resolve(adminUser);
-                    return;
-                }
-
-                // Check local storage for registered users
-                const users = JSON.parse(localStorage.getItem('flashcards_users') || '{}');
-                const registeredUser = users[username];
-
-                if (registeredUser && registeredUser.password === password) {
-                    const userObj = { id: username, username: username }; // Simple ID strategy
-                    setUser(userObj);
-                    localStorage.setItem('flashcards_session', JSON.stringify(userObj));
-                    resolve(userObj);
-                } else {
-                    reject('Invalid username or password');
-                }
-            }, 500); // Fake delay
-        });
+    const login = (email, password) => {
+        return signInWithEmailAndPassword(auth, email, password);
     };
 
-    const signup = (username, password) => {
-        return new Promise((resolve, reject) => {
-            setTimeout(() => {
-                const users = JSON.parse(localStorage.getItem('flashcards_users') || '{}');
-
-                if (users[username] || username === 'admin') {
-                    reject('Username already exists');
-                    return;
-                }
-
-                const newUser = { password }; // In a real app, hash this!
-                users[username] = newUser;
-                localStorage.setItem('flashcards_users', JSON.stringify(users));
-
-                // Auto login
-                const userObj = { id: username, username };
-                setUser(userObj);
-                localStorage.setItem('flashcards_session', JSON.stringify(userObj));
-                resolve(userObj);
-            }, 500);
-        });
+    const signup = (email, password) => {
+        return createUserWithEmailAndPassword(auth, email, password);
     };
 
     const loginWithGoogle = () => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const googleUser = { id: 'google_user', username: 'Google User', isGoogle: true };
-                setUser(googleUser);
-                localStorage.setItem('flashcards_session', JSON.stringify(googleUser));
-                resolve(googleUser);
-            }, 800);
-        });
+        return signInWithPopup(auth, googleProvider);
     };
 
     const logout = () => {
-        setUser(null);
-        localStorage.removeItem('flashcards_session');
+        return signOut(auth);
     };
 
     return (
