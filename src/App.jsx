@@ -10,6 +10,7 @@ function App() {
   // Routing State
   const [view, setView] = useState('dashboard'); // 'dashboard', 'editor', 'study'
   const [activeSetId, setActiveSetId] = useState(null);
+  const [history, setHistory] = useState([]); // Stack of { view, activeSetId }
 
   // File System
   const fs = useFileSystem();
@@ -21,32 +22,60 @@ function App() {
     if (item.type === 'set') {
       setActiveSetId(item.id);
       // Load content into editor/study
-      // Assuming content format: { cards: [], text: "..." }
       // If fresh set, content is null.
       if (item.content) {
         flashcardState.setInputText(item.content.text || '');
+        if (item.content.languages) {
+          flashcardState.setLanguages(item.content.languages);
+        }
         // We rely on parse logic in useFlashcards to generate cards from text
         // If we saved other metadata (separators), load them too
       } else {
         flashcardState.setInputText('');
+        flashcardState.setLanguages({ term: 'en-US', definition: 'en-US' });
       }
+
+      // Add to history before navigating
+      setHistory(prev => [...prev, { view, activeSetId }]);
       setView('editor');
     }
+  };
+
+  const navigateToNewSet = (id) => {
+    setActiveSetId(id);
+    flashcardState.setInputText('');
+    flashcardState.setLanguages({ term: 'en-US', definition: 'en-US' });
+    setHistory(prev => [...prev, { view, activeSetId }]);
+    setView('editor');
   };
 
   const handleSaveSet = () => {
     if (activeSetId) {
       fs.updateSetContent(activeSetId, {
         text: flashcardState.inputText,
+        languages: flashcardState.languages,
         // we could save parsed cards too to avoid reparsing, but text is source of truth
       });
     }
   };
 
-  const goHome = () => {
+  const goBack = () => {
     handleSaveSet();
-    setView('dashboard');
-    setActiveSetId(null);
+    if (history.length > 0) {
+      const prev = history[history.length - 1];
+      setHistory(history.slice(0, -1));
+      setView(prev.view);
+      setActiveSetId(prev.activeSetId);
+    } else {
+      setView('dashboard');
+      setActiveSetId(null);
+    }
+  };
+
+  const handleCreateAndExit = () => {
+    handleSaveSet();
+    // Go back to pre-editor state (usually dashboard or folder w/ history)
+    goBack();
   };
 
   const startStudy = () => {
@@ -66,7 +95,7 @@ function App() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {view !== 'dashboard' && (
-            <button onClick={goHome} className="nav-btn" style={{ padding: '0.5rem', display: 'flex', alignItems: 'center' }}>
+            <button onClick={goBack} className="nav-btn" style={{ padding: '0.5rem', display: 'flex', alignItems: 'center' }}>
               ← Back
             </button>
           )}
@@ -78,25 +107,21 @@ function App() {
         </div>
 
         <div style={{ gap: '1rem', display: 'flex' }}>
-          {view !== 'dashboard' && (
+          {view === 'editor' && (
             <>
               <button
-                style={{
-                  color: view === 'editor' ? 'var(--color-primary)' : 'var(--color-text)',
-                  fontWeight: view === 'editor' ? 600 : 400
-                }}
-                onClick={() => setView('editor')}
+                className="action-btn"
+                onClick={handleCreateAndExit}
+                style={{ padding: '0.5rem 1rem' }}
               >
-                Editor
+                Create
               </button>
               <button
-                style={{
-                  color: view === 'study' ? 'var(--color-primary)' : 'var(--color-text)',
-                  fontWeight: view === 'study' ? 600 : 400
-                }}
+                className="action-btn"
                 onClick={startStudy}
+                style={{ padding: '0.5rem 1rem', background: 'var(--color-primary)', color: 'white', borderColor: 'var(--color-primary)' }}
               >
-                Study
+                Create and Practice
               </button>
             </>
           )}
@@ -109,13 +134,14 @@ function App() {
             onNavigateFile={handleNavigateFile}
             onCopy={(ids, action) => fs.copyToClipboard(ids, action)}
             onPaste={fs.pasteFromClipboard}
+            onNavigateNewSet={navigateToNewSet}
           />
         )}
         {view === 'editor' && (
           <Editor {...flashcardState} />
         )}
         {view === 'study' && (
-          <Study cards={flashcardState.cards} images={flashcardState.images} />
+          <Study cards={flashcardState.cards} images={flashcardState.images} languages={flashcardState.languages} />
         )}
       </main>
     </div>

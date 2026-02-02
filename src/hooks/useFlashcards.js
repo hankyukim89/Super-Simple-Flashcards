@@ -8,6 +8,10 @@ export const useFlashcards = () => {
         card: '\n',
         term: ','
     });
+    const [languages, setLanguages] = useState({
+        term: 'en-US',
+        definition: 'en-US'
+    });
 
     // Unique ID map to perserve IDs across parses if possible, or just generate new ones.
     // For a simple text-based parser, it's hard to keep IDs stable if text changes significantly.
@@ -119,6 +123,9 @@ export const useFlashcards = () => {
         updateCard,
         images,
         addImage,
-        removeCard
+        addImage,
+        removeCard,
+        languages,
+        setLanguages
     };
 };

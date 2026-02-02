@@ -12,18 +12,19 @@ const Editor = ({
     images,
     addImage,
     removeCard
+    addImage,
+    removeCard,
+    languages,
+    setLanguages
 }) => {
     const textareaRef = useRef(null);
-    const lineNumbersRef = useRef(null);
 
     const handleSeparatorChange = (type, value) => {
         setSeparators(prev => ({ ...prev, [type]: value }));
     };
 
-    const handleScroll = () => {
-        if (textareaRef.current && lineNumbersRef.current) {
-            lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
-        }
+    const handleLanguageChange = (type, value) => {
+        setLanguages(prev => ({ ...prev, [type]: value }));
     };
 
     const lineCount = inputText.split('\n').length;
@@ -34,21 +35,15 @@ const Editor = ({
         <div className="editor-layout">
             {/* Left Column: Input & Settings */}
             <div className="input-section">
-
-                <div className="editor-container">
-                    <div className="line-numbers" ref={lineNumbersRef}>
-                        {lineNumbers.map(num => (
-                            <div key={num}>{num}</div>
-                        ))}
-                    </div>
+                <div className="editor-container" style={{ display: 'flex' }}>
                     <textarea
                         ref={textareaRef}
                         className="main-input code-editor"
                         value={inputText}
                         onChange={(e) => setInputText(e.target.value)}
-                        onScroll={handleScroll}
                         placeholder={`Word 1, Definition 1\nWord 2, Definition 2...`}
                         spellCheck={false}
+                        style={{ padding: '1rem', flex: 1 }}
                     />
                 </div>
 
@@ -77,6 +72,43 @@ const Editor = ({
                                 onChange={(e) => handleSeparatorChange('card', e.target.value || '\n')}
                                 placeholder="Custom"
                             />
+                        </div>
+                    </div>
+
+                    <div className="setting-group" style={{ flexDirection: 'row', gap: '1rem' }}>
+                        <div style={{ flex: 1 }}>
+                            <label>Term Language</label>
+                            <select
+                                value={languages?.term || 'en-US'}
+                                onChange={(e) => handleLanguageChange('term', e.target.value)}
+                                style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
+                            >
+                                <option value="en-US">English (US)</option>
+                                <option value="es-ES">Spanish</option>
+                                <option value="fr-FR">French</option>
+                                <option value="de-DE">German</option>
+                                <option value="it-IT">Italian</option>
+                                <option value="ja-JP">Japanese</option>
+                                <option value="ko-KR">Korean</option>
+                                <option value="zh-CN">Chinese (Simplified)</option>
+                            </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <label>Definition Language</label>
+                            <select
+                                value={languages?.definition || 'en-US'}
+                                onChange={(e) => handleLanguageChange('definition', e.target.value)}
+                                style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
+                            >
+                                <option value="en-US">English (US)</option>
+                                <option value="es-ES">Spanish</option>
+                                <option value="fr-FR">French</option>
+                                <option value="de-DE">German</option>
+                                <option value="it-IT">Italian</option>
+                                <option value="ja-JP">Japanese</option>
+                                <option value="ko-KR">Korean</option>
+                                <option value="zh-CN">Chinese (Simplified)</option>
+                            </select>
                         </div>
                     </div>
                 </div>

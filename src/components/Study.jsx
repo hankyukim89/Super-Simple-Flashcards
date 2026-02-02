@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Flashcard from './Flashcard';
 
-const Study = ({ cards, images }) => {
+const Study = ({ cards, images, languages }) => {
     const [studyCards, setStudyCards] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
@@ -144,6 +144,7 @@ const Study = ({ cards, images }) => {
                 isFlipped={isFlipped}
                 onClick={() => setIsFlipped(!isFlipped)}
                 images={images}
+                languages={languages}
             />
 
             <div className="controls">

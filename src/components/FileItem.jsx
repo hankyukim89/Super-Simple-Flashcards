@@ -8,8 +8,17 @@ const FileItem = ({
     onContextMenu,
     isDragging,
     onDragStart,
-    onDrop
+    onDrop,
+    isRenaming,
+    onRename
 }) => {
+    const handleRenameSubmit = (e) => {
+        if (e.key === 'Enter') {
+            onRename(item.id, e.target.value);
+        } else if (e.key === 'Escape') {
+            onRename(item.id, null); // Cancel
+        }
+    };
 
     return (
         <div
@@ -25,8 +34,8 @@ const FileItem = ({
                 e.currentTarget.style.background = 'transparent';
                 onDrop(item);
             }}
-            onClick={(e) => onSelect(item, e.ctrlKey || e.metaKey)}
-            onDoubleClick={() => onNavigate(item)}
+            onClick={(e) => !isRenaming && onSelect(item, e.ctrlKey || e.metaKey)}
+            onDoubleClick={() => !isRenaming && onNavigate(item)}
             onContextMenu={(e) => onContextMenu(e, item)}
             style={{
                 display: 'flex',
@@ -45,14 +54,32 @@ const FileItem = ({
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
                 {item.type === 'folder' ? '📁' : '🗂️'}
             </div>
-            <div style={{
-                fontSize: '0.9rem',
-                textAlign: 'center',
-                wordBreak: 'break-word',
-                fontWeight: isSelected ? 600 : 400
-            }}>
-                {item.name}
-            </div>
+            {isRenaming ? (
+                <input
+                    autoFocus
+                    defaultValue={item.name}
+                    onBlur={(e) => onRename(item.id, e.target.value)}
+                    onKeyDown={handleRenameSubmit}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                        width: '100%',
+                        textAlign: 'center',
+                        fontSize: '0.9rem',
+                        padding: '2px',
+                        border: '1px solid var(--color-primary)',
+                        borderRadius: '4px'
+                    }}
+                />
+            ) : (
+                <div style={{
+                    fontSize: '0.9rem',
+                    textAlign: 'center',
+                    wordBreak: 'break-word',
+                    fontWeight: isSelected ? 600 : 400
+                }}>
+                    {item.name}
+                </div>
+            )}
             <div style={{ fontSize: '0.7rem', color: '#999', marginTop: '0.2rem' }}>
                 {item.permissions}
             </div>
