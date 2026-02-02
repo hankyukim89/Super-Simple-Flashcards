@@ -206,6 +206,8 @@ const Dashboard = ({
         }
     };
 
+    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+
     return (
         <div
             className="dashboard-container"
@@ -224,7 +226,7 @@ const Dashboard = ({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '2rem',
+                marginBottom: '1.5rem',
                 paddingBottom: '1rem',
                 borderBottom: '1px solid var(--color-border)'
             }}>
@@ -247,7 +249,38 @@ const Dashboard = ({
                     ))}
                 </div>
 
-                <div className="toolbar-actions" style={{ display: 'flex', gap: '1rem' }}>
+                <div className="toolbar-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', background: '#f0f2f5', borderRadius: '20px', padding: '2px', marginRight: '1rem' }}>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            style={{
+                                background: viewMode === 'list' ? 'white' : 'transparent',
+                                border: 'none',
+                                borderRadius: '18px',
+                                padding: '6px 12px',
+                                cursor: 'pointer',
+                                boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                display: 'flex', alignItems: 'center', gap: '5px'
+                            }}
+                        >
+                            <span style={{ fontSize: '14px' }}>☰</span>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            style={{
+                                background: viewMode === 'grid' ? 'white' : 'transparent',
+                                border: 'none',
+                                borderRadius: '18px',
+                                padding: '6px 12px',
+                                cursor: 'pointer',
+                                boxShadow: viewMode === 'grid' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                display: 'flex', alignItems: 'center', gap: '5px'
+                            }}
+                        >
+                            <span style={{ fontSize: '14px' }}>⊞</span>
+                        </button>
+                    </div>
+
                     <button
                         className="action-btn"
                         onClick={handleNewFolder}
@@ -265,12 +298,38 @@ const Dashboard = ({
                 </div>
             </div>
 
-            {/* Grid */}
-            <div className="file-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignContent: 'flex-start', flex: 1 }}>
+            {/* List Header */}
+            {viewMode === 'list' && children.length > 0 && (
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(250px, 2fr) 150px 150px',
+                    padding: '0.5rem 1rem',
+                    borderBottom: '1px solid #eee',
+                    marginBottom: '0.5rem',
+                    color: '#666',
+                    fontSize: '0.9rem',
+                    fontWeight: '500'
+                }}>
+                    <div>Name</div>
+                    <div>Owner</div>
+                    <div>Date Modified</div>
+                </div>
+            )}
+
+            {/* Content Area */}
+            <div className={`file-content-area ${viewMode}-view`} style={{
+                display: 'flex',
+                flexDirection: viewMode === 'list' ? 'column' : 'row',
+                flexWrap: viewMode === 'list' ? 'nowrap' : 'wrap',
+                gap: viewMode === 'list' ? '0' : '1.5rem',
+                alignContent: 'flex-start',
+                flex: 1
+            }}>
                 {children.map(item => (
-                    <div className="file-item-wrapper" data-id={item.id} key={item.id}>
+                    <div className="file-item-wrapper" data-id={item.id} key={item.id} style={{ width: viewMode === 'list' ? '100%' : 'auto' }}>
                         <FileItem
                             item={item}
+                            viewMode={viewMode}
                             isSelected={selection.has(item.id)}
                             onSelect={handleSelect}
                             onNavigate={(i) => {

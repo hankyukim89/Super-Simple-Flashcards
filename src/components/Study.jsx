@@ -163,7 +163,7 @@ const Study = ({ cards, images, languages }) => {
                 <div className="progress-bar">
                     <div
                         className="progress-fill"
-                        style={{ width: `${((currentIndex + 1) / studyCards.length) * 100}%` }}
+                        style={{ width: `${(currentIndex / studyCards.length) * 100}%` }}
                     />
                 </div>
 
