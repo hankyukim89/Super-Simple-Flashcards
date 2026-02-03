@@ -414,3 +414,50 @@
   /* Light grey on hover */
   cursor: text;
 }
+
+.autoplay-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  /* Initial spacing, adjust if needed */
+}
+
+.autoplay-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: white;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--color-text-secondary);
+  padding-left: 4px;
+  /* Optical centering for play icon */
+}
+
+.autoplay-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  padding-left: 0;
+  /* Centered for pause icon */
+}
+
+.autoplay-btn:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+.autoplay-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

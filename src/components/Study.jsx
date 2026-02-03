@@ -8,6 +8,28 @@ const Study = ({ cards, images, languages }) => {
     const [unknownIds, setUnknownIds] = useState(new Set());
     const [isReviewingUnknown, setIsReviewingUnknown] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
+    const [isAutoplay, setIsAutoplay] = useState(false);
+
+    // Autoplay Logic
+    useEffect(() => {
+        let timeout;
+        if (isAutoplay && !isComplete) {
+            if (!isFlipped) {
+                // Wait 3s then flip
+                timeout = setTimeout(() => {
+                    setIsFlipped(true);
+                }, 3000);
+            } else {
+                // Wait 3s then next
+                timeout = setTimeout(() => {
+                    handleNext();
+                }, 3000);
+            }
+        }
+        return () => clearTimeout(timeout);
+    }, [isAutoplay, isFlipped, isComplete, currentIndex, studyCards.length]); // Dependencies require careful check, handled by closures usually. relying on fresh render cycle. 
+    // Actually handleNext is memoized.
+
 
     // Initialize with all cards
     // Initialize with all cards
@@ -140,6 +162,8 @@ const Study = ({ cards, images, languages }) => {
         );
     }
 
+
+
     if (!currentCard) return null;
 
     return (
@@ -151,6 +175,19 @@ const Study = ({ cards, images, languages }) => {
                 images={images}
                 languages={languages}
             />
+
+            <div className="autoplay-section">
+                <button
+                    className={`autoplay-btn ${isAutoplay ? 'active' : ''}`}
+                    onClick={() => setIsAutoplay(prev => !prev)}
+                    title="Toggle Autoplay"
+                >
+                    {isAutoplay ? '⏸' : '▶'}
+                </button>
+                <span className="autoplay-label">
+                    Autoplay: {isAutoplay ? 'On' : 'Off'}
+                </span>
+            </div>
 
             <div className="controls">
                 <div className="stats-row">
