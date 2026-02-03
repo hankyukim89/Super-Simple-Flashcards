@@ -51,8 +51,19 @@ export const useFileSystem = (userId) => {
                                 nextItems[id] = remoteItem;
                                 hasChanges = true;
                             }
-                            // If local exists, check timestamps
+                            // If local exists, check timestamps and CONTENT
                             else {
+                                // SAFETY CHECK: If local has content and remote does not, keep local!
+                                // This handles the case where we just saved content but server only has the initial creation shell.
+                                const localHasContent = localItem.content && localItem.content.text;
+                                const remoteHasContent = remoteItem.content && remoteItem.content.text;
+
+                                if (localHasContent && !remoteHasContent) {
+                                    // Keep local, it has data we don't want to lose.
+                                    // Unless remote is WAY newer (implying explicit clear?), but let's be safe.
+                                    return;
+                                }
+
                                 // If remote is newer, take it.
                                 // Note: we ensure we parse timestamps correctly if they are strings.
                                 // Assuming they are numbers (Date.now()).
@@ -79,8 +90,8 @@ export const useFileSystem = (userId) => {
                                 // and implies it hasn't synced yet, KEEP IT.
                                 // Otherwise, assume it was deleted on server.
 
-                                // Threshold: 10 seconds buffer for sync safety
-                                const isRecent = (now - (localItem.modified || 0)) < 10000 || (now - (localItem.created || 0)) < 10000;
+                                // Increased buffer to 30 seconds to be extremely safe against slow networks
+                                const isRecent = (now - (localItem.modified || 0)) < 30000 || (now - (localItem.created || 0)) < 30000;
 
                                 if (isRecent) {
                                     // Keep it (it's likely pending sync)

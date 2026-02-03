@@ -68,95 +68,38 @@ const EditorPage = ({ fs, setHasCards }) => {
         };
     }, []);
 
-    // Re-replicating the comprehensive save logic from App.jsx:
-    // The previous app had `handleSaveSet` called before navigation.
-    // In React Router, we can't easily intercept "back button" to run logic *before* unmount AND have it access latest state easily without refs.
-
-    // Better approach:
-    // 1. Save on every change (debounced)? might be heavy for file system.
-    // 2. Use a ref to track current text/languages so cleanup function can access it.
-
-    // Let's implement the Ref approach for the cleanup save.
-
-    const contentRef = useRef({ text: '', languages: null, massCreate: { enabled: false, maxCards: 30 } });
-
-    // Sync ref with state
-    useEffect(() => {
-        contentRef.current = {
-            text: flashcardState.inputText,
-            languages: flashcardState.languages,
-            massCreate: massCreateSettings
-        };
-    }, [flashcardState.inputText, flashcardState.languages, massCreateSettings]);
-
-    // Auto-save Logic (Debounced)
+    // Unified Auto-Save Logic
     useEffect(() => {
         if (!setId) return;
 
-        const saveContent = () => {
-            const { text, languages, massCreate } = contentRef.current;
+        const save = () => {
+            const text = flashcardState.inputText;
+            const languages = flashcardState.languages;
 
-            // Simple Parser for mass create check
-            const cardStrings = text.split('\n').filter(s => s.trim());
+            // Validate: Don't save if it looks like we're overwriting with empty data during load
+            // (Wait until loaded is true)
+            if (!loaded) return;
 
-            if (massCreate.enabled && cardStrings.length > massCreate.maxCards) {
-                // Mass create logic is typically a ONE-OFF action on save/exit. 
-                // We shouldn't auto-split while user is typing.
-                // For now, let's ONLY autosave the raw text to the current set.
-                // The splitting logic should maybe only happen on explicit "Create" or exit?
-                // But we can't detect "Create" button click here easily.
-                // Let's stick to simple update for autosave.
-                fs.updateSetContent(setId, { text, languages });
-            } else {
-                fs.updateSetContent(setId, { text, languages });
-            }
+            fs.updateSetContent(setId, { text, languages });
         };
 
-        // Debounce 1000ms
-        const timeoutId = setTimeout(saveContent, 1000);
+        const timeoutId = setTimeout(save, 500); // More frequent saves (500ms)
 
         return () => {
             clearTimeout(timeoutId);
-        };
-    }, [flashcardState.inputText, flashcardState.languages, setId]); // We removed dependency on massCreateSettings for autosave trigger to avoid spam if just toggling settings
-
-    // Final Save on Unmount
-    useEffect(() => {
-        return () => {
-            if (setId) {
-                const { text, languages, massCreate } = contentRef.current;
-
-                // Here we can do the mass create logic if needed
-                const cardStrings = text.split('\n').filter(s => s.trim());
-
-                if (massCreate.enabled && cardStrings.length > massCreate.maxCards) {
-                    // ... (Mass create logic as before) ...
-                    console.log('Mass creating items on exit...');
-                    const max = massCreate.maxCards;
-                    const chunks = [];
-                    for (let i = 0; i < cardStrings.length; i += max) {
-                        chunks.push(cardStrings.slice(i, i + max));
-                    }
-
-                    const firstChunkText = chunks[0].join('\n');
-                    fs.updateSetContent(setId, { text: firstChunkText, languages });
-
-                    const currentItem = fs.items[setId];
-                    const parentId = currentItem?.parentId || 'root';
-                    const baseName = currentItem?.name || 'New Set';
-
-                    chunks.slice(1).forEach((chunk, index) => {
-                        const newName = `${baseName} ${index + 2}`;
-                        const newContent = { text: chunk.join('\n'), languages };
-                        fs.createItem('set', newName, parentId, newContent);
-                    });
-                } else {
-                    // Final save to ensure latest state is captured even if debounce didn't fire
-                    fs.updateSetContent(setId, { text, languages });
-                }
+            // On unmount/cleanup, force a save of the CURRENT state
+            // Note: In this cleanup closure, 'flashcardState' might be stale if the effect didn't re-run.
+            // But we requested this effect to run on [inputText, languages].
+            // So for THIS render cycle, the closure has the correct state.
+            // We can safely save.
+            if (loaded) {
+                fs.updateSetContent(setId, {
+                    text: flashcardState.inputText,
+                    languages: flashcardState.languages
+                });
             }
         };
-    }, [setId]); // Only on mount/unmount/setId change
+    }, [flashcardState.inputText, flashcardState.languages, setId, loaded]); // Dependencies ensure fresh state
 
     return (
         <Editor
