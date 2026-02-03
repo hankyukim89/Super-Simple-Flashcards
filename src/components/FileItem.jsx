@@ -67,6 +67,7 @@ const FileItem = ({
                     {isRenaming ? (
                         <input
                             autoFocus
+                            onFocus={(e) => e.target.select()}
                             defaultValue={item.name}
                             onBlur={(e) => onRename(item.id, e.target.value)}
                             onKeyDown={handleRenameSubmit}
@@ -140,6 +141,7 @@ const FileItem = ({
             {isRenaming ? (
                 <input
                     autoFocus
+                    onFocus={(e) => e.target.select()}
                     defaultValue={item.name}
                     onBlur={(e) => onRename(item.id, e.target.value)}
                     onKeyDown={handleRenameSubmit}
