@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFlashcards } from '../hooks/useFlashcards';
 import Editor from './Editor';
 
-const EditorPage = ({ fs }) => {
+const EditorPage = ({ fs, setHasCards }) => {
     const { setId } = useParams();
     const navigate = useNavigate();
     const flashcardState = useFlashcards();
-
+    const [loaded, setLoaded] = useState(false);
 
     // Mass Create Settings
     const [massCreateSettings, setMassCreateSettings] = useState({
@@ -15,22 +15,43 @@ const EditorPage = ({ fs }) => {
         maxCards: 30
     });
 
+    // Update parent about card validity
+    useEffect(() => {
+        if (setHasCards) {
+            setHasCards(flashcardState.cards && flashcardState.cards.length > 0);
+        }
+    }, [flashcardState.cards, setHasCards]);
+
     // Load data on mount or setId change
     useEffect(() => {
-        if (setId && fs.items[setId]) {
+        if (!loaded && setId && fs.items[setId]) {
             const item = fs.items[setId];
+            // Only update if we haven't started editing (which 'loaded' implies)
+            // But we also want to handle case where we switch sets.
+            // If setId changes, 'loaded' should reset? 
+            // We need to reset loaded when setId changes.
+
             if (item.content) {
                 flashcardState.setInputText(item.content.text || '');
                 if (item.content.languages) {
                     flashcardState.setLanguages(item.content.languages);
                 }
+            } else {
+                flashcardState.setInputText('');
             }
-        } else if (!setId) {
+            setLoaded(true);
+        } else if (!setId && !loaded) {
             // New set creation mode
             flashcardState.setInputText('');
             flashcardState.setLanguages({ term: 'en-US', definition: 'en-US' });
+            setLoaded(true);
         }
-    }, [setId, fs.items]);
+    }, [setId, fs.items, loaded]);
+
+    // Reset loaded state if setId changes
+    useEffect(() => {
+        setLoaded(false);
+    }, [setId]);
 
     // Save on unmount or before navigating away
     useEffect(() => {
@@ -59,6 +80,7 @@ const EditorPage = ({ fs }) => {
 
     const contentRef = useRef({ text: '', languages: null, massCreate: { enabled: false, maxCards: 30 } });
 
+    // Sync ref with state
     useEffect(() => {
         contentRef.current = {
             text: flashcardState.inputText,
@@ -67,75 +89,74 @@ const EditorPage = ({ fs }) => {
         };
     }, [flashcardState.inputText, flashcardState.languages, massCreateSettings]);
 
+    // Auto-save Logic (Debounced)
+    useEffect(() => {
+        if (!setId) return;
+
+        const saveContent = () => {
+            const { text, languages, massCreate } = contentRef.current;
+
+            // Simple Parser for mass create check
+            const cardStrings = text.split('\n').filter(s => s.trim());
+
+            if (massCreate.enabled && cardStrings.length > massCreate.maxCards) {
+                // Mass create logic is typically a ONE-OFF action on save/exit. 
+                // We shouldn't auto-split while user is typing.
+                // For now, let's ONLY autosave the raw text to the current set.
+                // The splitting logic should maybe only happen on explicit "Create" or exit?
+                // But we can't detect "Create" button click here easily.
+                // Let's stick to simple update for autosave.
+                fs.updateSetContent(setId, { text, languages });
+            } else {
+                fs.updateSetContent(setId, { text, languages });
+            }
+        };
+
+        // Debounce 1000ms
+        const timeoutId = setTimeout(saveContent, 1000);
+
+        return () => {
+            clearTimeout(timeoutId);
+        };
+    }, [flashcardState.inputText, flashcardState.languages, setId]); // We removed dependency on massCreateSettings for autosave trigger to avoid spam if just toggling settings
+
+    // Final Save on Unmount
     useEffect(() => {
         return () => {
             if (setId) {
                 const { text, languages, massCreate } = contentRef.current;
 
-                // Logic: Mass Create Splitting
-                // If enabled, we parse the text here to check length
-                // We reuse the simple parsing logic since hooks aren't available in cleanup
-                // We assume default separators for now as they aren't part of contentRef standard flow yet, 
-                // but usually user sticks to defaults.
-
-                // Simple Parser
+                // Here we can do the mass create logic if needed
                 const cardStrings = text.split('\n').filter(s => s.trim());
 
                 if (massCreate.enabled && cardStrings.length > massCreate.maxCards) {
-                    console.log('Mass creating items...');
+                    // ... (Mass create logic as before) ...
+                    console.log('Mass creating items on exit...');
                     const max = massCreate.maxCards;
                     const chunks = [];
                     for (let i = 0; i < cardStrings.length; i += max) {
                         chunks.push(cardStrings.slice(i, i + max));
                     }
 
-                    // 1. Update the CURRENT set with the first chunk
                     const firstChunkText = chunks[0].join('\n');
-                    fs.updateSetContent(setId, {
-                        text: firstChunkText,
-                        languages: languages
-                    });
+                    fs.updateSetContent(setId, { text: firstChunkText, languages });
 
-                    // 2. Create NEW sets for the rest
-                    // We need the parent Folder ID. We can get it from the pending item lookup
-                    const currentItem = fs.items[setId]; // Note: fs.items might be stale in closure?
-                    // fs is a prop, so it refreshes. cleanup captures initial 'fs' if dep array is empty?
-                    // We put 'setId' in dep array, so effect recreates when setId changes.
-                    // But 'fs' might be stale? useFileSystem functions are stable (useCallback dep []).
-                    // accessing fs.items directly might be stale if fs isn't in dep array.
-                    // But we can't put fs in dep array easily or it loops.
-
-                    // Workaround: We trust 'fs' functions are up to date.
-                    // But we need the parentId.
-                    // If we can't get it reliable, we default to 'root'.
-                    // Actually, since we navigate away, maybe we don't need to be perfect on stale state for 'items'.
-                    // Let's try to get it.
+                    const currentItem = fs.items[setId];
                     const parentId = currentItem?.parentId || 'root';
                     const baseName = currentItem?.name || 'New Set';
 
                     chunks.slice(1).forEach((chunk, index) => {
                         const newName = `${baseName} ${index + 2}`;
-                        const newContent = {
-                            text: chunk.join('\n'),
-                            languages: languages
-                        };
-
-                        // We need to create a Set. 
-                        // fs.createItem returns ID, but we don't needed it here.
-                        // We pass content directly? createItem signature: (type, name, parent, content)
+                        const newContent = { text: chunk.join('\n'), languages };
                         fs.createItem('set', newName, parentId, newContent);
                     });
-
                 } else {
-                    // Standard Save
-                    fs.updateSetContent(setId, {
-                        text: text,
-                        languages: languages
-                    });
+                    // Final save to ensure latest state is captured even if debounce didn't fire
+                    fs.updateSetContent(setId, { text, languages });
                 }
             }
         };
-    }, [setId]); // Run cleanup when setId changes (navigating between sets) or unmount.
+    }, [setId]); // Only on mount/unmount/setId change
 
     return (
         <Editor

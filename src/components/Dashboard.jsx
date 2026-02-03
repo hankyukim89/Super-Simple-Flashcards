@@ -262,7 +262,11 @@ const Dashboard = ({
         }
     };
 
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+    const [viewMode, setViewMode] = useState(() => localStorage.getItem('dashboardViewMode') || 'grid'); // 'grid' | 'list'
+
+    useEffect(() => {
+        localStorage.setItem('dashboardViewMode', viewMode);
+    }, [viewMode]);
 
     return (
         <div

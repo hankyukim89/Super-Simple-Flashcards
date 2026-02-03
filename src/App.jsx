@@ -53,13 +53,15 @@ function AuthenticatedApp() {
     navigate(`/edit/${id}`);
   };
 
+  const [hasCards, setHasCards] = useState(false);
+
   // If we are not logged in, show Landing Page
   if (!user) {
     return <LandingPage />;
   }
 
   const isDashboard = location.pathname === '/';
-  const isEditor = location.pathname.startsWith('/edit/');
+  const isEditor = location.pathname.startsWith('/edit/') || location.pathname === '/create';
   const currentSetId = isEditor ? location.pathname.split('/')[2] : null;
 
   return (
@@ -124,14 +126,27 @@ function AuthenticatedApp() {
               <button
                 className="action-btn"
                 onClick={() => navigate('/')} // "Create" button effectively just saves (via unmount) and exits
-                style={{ padding: '0.5rem 1rem' }}
+                disabled={!hasCards}
+                style={{
+                  padding: '0.5rem 1rem',
+                  opacity: hasCards ? 1 : 0.5,
+                  cursor: hasCards ? 'pointer' : 'not-allowed'
+                }}
               >
                 Create
               </button>
               <button
                 className="action-btn"
                 onClick={() => navigate(`/study/${currentSetId}`)}
-                style={{ padding: '0.5rem 1rem', background: 'var(--color-primary)', color: 'white', borderColor: 'var(--color-primary)' }}
+                disabled={!hasCards}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'var(--color-primary)',
+                  color: 'white',
+                  borderColor: 'var(--color-primary)',
+                  opacity: hasCards ? 1 : 0.5,
+                  cursor: hasCards ? 'pointer' : 'not-allowed'
+                }}
               >
                 Create and Practice
               </button>
@@ -177,8 +192,8 @@ function AuthenticatedApp() {
               onNavigateNewSet={navigateToNewSet}
             />
           } />
-          <Route path="/edit/:setId" element={<EditorPage fs={fs} />} />
-          <Route path="/create" element={<EditorPage fs={fs} />} />
+          <Route path="/edit/:setId" element={<EditorPage fs={fs} setHasCards={setHasCards} />} />
+          <Route path="/create" element={<EditorPage fs={fs} setHasCards={setHasCards} />} />
           <Route path="/study/:setId" element={<StudyPage fs={fs} />} />
         </Routes>
       </main>

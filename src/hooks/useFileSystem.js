@@ -25,20 +25,81 @@ export const useFileSystem = (userId) => {
     });
     const [clipboard, setClipboard] = useState(null);
 
-    const isRemoteUpdate = useRef(false);
+    // Track the last time we saved to Firestore to prevent loops/stale overwrites
+    const lastSaveTime = useRef(0);
 
-    // Load from Firestore (Sync)
+    // Load from Firestore (Sync with Merge)
     useEffect(() => {
         if (!userId) return;
 
         const unsub = onSnapshot(doc(db, "users", userId), (docSnap) => {
             if (docSnap.exists()) {
-                const data = docSnap.data().fileSystem;
-                if (data) {
-                    // Update state AND local storage to keep them in sync
-                    isRemoteUpdate.current = true;
-                    setItems(data);
-                    localStorage.setItem(getStorageKey(userId), JSON.stringify(data));
+                const remoteData = (docSnap.data() || {}).fileSystem;
+                if (remoteData) {
+                    setItems(prevItems => {
+                        const nextItems = { ...prevItems };
+                        const now = Date.now();
+                        let hasChanges = false;
+
+                        // 1. Update/Add items from Remote
+                        Object.keys(remoteData).forEach(id => {
+                            const remoteItem = remoteData[id];
+                            const localItem = prevItems[id];
+
+                            // If local doesn't exist, add it
+                            if (!localItem) {
+                                nextItems[id] = remoteItem;
+                                hasChanges = true;
+                            }
+                            // If local exists, check timestamps
+                            else {
+                                // If remote is newer, take it.
+                                // Note: we ensure we parse timestamps correctly if they are strings.
+                                // Assuming they are numbers (Date.now()).
+                                if (remoteItem.modified > localItem.modified) {
+                                    // Special check: If local was modified VERY recently (pending save), keep local
+                                    // if (remoteItem.modified > localItem.modified) implied remote is newer.
+                                    // But what if local modification happened 1ms ago and hasn't synced?
+                                    // Then local.modified > remote.modified (usually).
+                                    // Only if clocks are weird.
+                                    // Let's rely on strict inequality.
+                                    if (JSON.stringify(remoteItem) !== JSON.stringify(localItem)) {
+                                        nextItems[id] = remoteItem;
+                                        hasChanges = true;
+                                    }
+                                }
+                            }
+                        });
+
+                        // 2. Check for Local items missing in Remote (Potential Deletions vs New Items)
+                        Object.keys(prevItems).forEach(id => {
+                            if (!remoteData[id]) {
+                                const localItem = prevItems[id];
+                                // If local item is new (created recently, e.g., last 10 seconds) or modified recently 
+                                // and implies it hasn't synced yet, KEEP IT.
+                                // Otherwise, assume it was deleted on server.
+
+                                // Threshold: 10 seconds buffer for sync safety
+                                const isRecent = (now - (localItem.modified || 0)) < 10000 || (now - (localItem.created || 0)) < 10000;
+
+                                if (isRecent) {
+                                    // Keep it (it's likely pending sync)
+                                } else {
+                                    // Delete it (Server says it's gone)
+                                    // Exception: 'root' should never be deleted
+                                    if (id !== 'root') {
+                                        delete nextItems[id];
+                                        hasChanges = true;
+                                    }
+                                }
+                            }
+                        });
+
+                        return hasChanges ? nextItems : prevItems;
+                    });
+
+                    // Update local storage immediately for backup (best effort)
+                    localStorage.setItem(getStorageKey(userId), JSON.stringify(remoteData));
                 }
             } else {
                 setDoc(doc(db, "users", userId), { fileSystem: DEFAULT_ITEMS }, { merge: true });
@@ -62,17 +123,14 @@ export const useFileSystem = (userId) => {
 
         // 2. Sync to Firestore if logged in
         if (userId && items !== DEFAULT_ITEMS) {
-            // Prevent echoing back updates that just came from Firestore
-            if (isRemoteUpdate.current) {
-                isRemoteUpdate.current = false;
-                return;
-            }
-
             const save = async () => {
                 try {
-                    // Use updateDoc to replace the entire 'fileSystem' map.
-                    // setDoc with { merge: true } would merge keys, preventing deletion of removed keys.
+                    // Update the whole map. 
+                    // Since we merged remote changes into 'items', writing 'items' back is safe 
+                    // unless a parallel write happened *during* the merge/render cycle.
+                    // This is acceptable for single-user scenarios.
                     await updateDoc(doc(db, "users", userId), { fileSystem: items });
+                    lastSaveTime.current = Date.now();
                 } catch (e) {
                     if (e.code === 'not-found') {
                         await setDoc(doc(db, "users", userId), { fileSystem: items });
@@ -152,11 +210,13 @@ export const useFileSystem = (userId) => {
     }, []);
 
     const updateSetContent = useCallback((id, content) => {
-        console.log('Updating content for:', id);
-        setItems(prev => ({
-            ...prev,
-            [id]: { ...prev[id], content, modified: Date.now() }
-        }));
+        setItems(prev => {
+            // Basic structural sharing
+            return {
+                ...prev,
+                [id]: { ...prev[id], content, modified: Date.now() }
+            };
+        });
     }, []);
 
     const copyToClipboard = useCallback((ids, action) => {
@@ -165,7 +225,6 @@ export const useFileSystem = (userId) => {
     }, []);
 
     const pasteFromClipboard = useCallback((targetFolderId) => {
-        console.log('Pasting to:', targetFolderId);
         if (!clipboard) return;
 
         if (clipboard.action === 'cut') {
@@ -185,13 +244,12 @@ export const useFileSystem = (userId) => {
                         ...original,
                         id: newId,
                         parentId: newParentId,
-                        name: original.name + (newParentId === original.parentId ? ' (Copy)' : ''), // avoid name collision if same folder
+                        name: original.name + (newParentId === original.parentId ? ' (Copy)' : ''),
                         created: Date.now(),
                         modified: Date.now()
                     };
                     next[newId] = newItem;
 
-                    // Copy children if folder
                     if (original.type === 'folder') {
                         const children = Object.values(prev).filter(i => i.parentId === itemId);
                         children.forEach(c => copyRecursive(c.id, newId));
@@ -208,7 +266,7 @@ export const useFileSystem = (userId) => {
         console.log('Updating permissions:', id, permission);
         setItems(prev => ({
             ...prev,
-            [id]: { ...prev[id], permissions: permission }
+            [id]: { ...prev[id], permissions: permission, modified: Date.now() }
         }));
     }, []);
 
