@@ -1,16 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export const useFlashcards = () => {
-    const [inputText, setInputText] = useState('');
+export const useFlashcards = (initialText = '', initialLanguages = { term: 'en-US', definition: 'en-US' }) => {
+    const [inputText, setInputText] = useState(initialText);
     const [cards, setCards] = useState([]);
     const [separators, setSeparators] = useState({
         card: '\n',
         term: ','
     });
-    const [languages, setLanguages] = useState({
-        term: 'en-US',
-        definition: 'en-US'
-    });
+    const [languages, setLanguages] = useState(initialLanguages);
 
     // Unique ID map to perserve IDs across parses if possible, or just generate new ones.
     // For a simple text-based parser, it's hard to keep IDs stable if text changes significantly.

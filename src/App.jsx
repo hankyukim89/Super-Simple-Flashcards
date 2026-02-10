@@ -192,9 +192,9 @@ function AuthenticatedApp() {
               onNavigateNewSet={navigateToNewSet}
             />
           } />
-          <Route path="/edit/:setId" element={<EditorPage fs={fs} setHasCards={setHasCards} />} />
-          <Route path="/create" element={<EditorPage fs={fs} setHasCards={setHasCards} />} />
-          <Route path="/study/:setId" element={<StudyPage fs={fs} />} />
+          <Route path="/edit/:setId" element={<EditorPage key={location.pathname} fs={fs} setHasCards={setHasCards} />} />
+          <Route path="/create" element={<EditorPage key="create" fs={fs} setHasCards={setHasCards} />} />
+          <Route path="/study/:setId" element={<StudyPage key={location.pathname} fs={fs} />} />
         </Routes>
       </main>
     </div>

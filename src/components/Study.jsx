@@ -10,28 +10,6 @@ const Study = ({ cards, images, languages }) => {
     const [isComplete, setIsComplete] = useState(false);
     const [isAutoplay, setIsAutoplay] = useState(false);
 
-    // Autoplay Logic
-    useEffect(() => {
-        let timeout;
-        if (isAutoplay && !isComplete) {
-            if (!isFlipped) {
-                // Wait 3s then flip
-                timeout = setTimeout(() => {
-                    setIsFlipped(true);
-                }, 3000);
-            } else {
-                // Wait 3s then next
-                timeout = setTimeout(() => {
-                    handleNext();
-                }, 3000);
-            }
-        }
-        return () => clearTimeout(timeout);
-    }, [isAutoplay, isFlipped, isComplete, currentIndex, studyCards.length]); // Dependencies require careful check, handled by closures usually. relying on fresh render cycle. 
-    // Actually handleNext is memoized.
-
-
-    // Initialize with all cards
     // Initialize with all cards
     useEffect(() => {
         // Only map if not already set or restarting
@@ -77,6 +55,26 @@ const Study = ({ cards, images, languages }) => {
         setUnknownIds(prev => new Set(prev).add(currentId));
         handleNext();
     }, [handleNext, currentIndex, studyCards]);
+
+    // Autoplay Logic
+    useEffect(() => {
+        let timeout;
+        if (isAutoplay && !isComplete) {
+            if (!isFlipped) {
+                // Wait 3s then flip
+                timeout = setTimeout(() => {
+                    setIsFlipped(true);
+                }, 3000);
+            } else {
+                // Wait 3s then next
+                timeout = setTimeout(() => {
+                    handleNext();
+                }, 3000);
+            }
+        }
+        return () => clearTimeout(timeout);
+    }, [isAutoplay, isFlipped, isComplete, currentIndex, studyCards.length, handleNext]);
+
 
     // Keyboard Shortcuts
     useEffect(() => {
